@@ -1,0 +1,79 @@
+name: mongo-sharding
+
+services:
+  mongodb-conf:
+    extends:
+      service: mongodb
+      file: mongo.yml
+    command:
+      [
+        "--configsvr",
+        "--replSet",
+        "configServer",
+        "--bind_ip_all",
+        "--port",
+        "27017"
+      ]
+
+  mongodb-shard1:
+    extends:
+      service: mongodb
+      file: mongo.yml
+    command:
+      [
+        "--shardsvr",
+        "--replSet",
+        "shard1",
+        "--bind_ip_all",
+        "--port",
+        "27017"
+      ]
+
+  mongodb-shard2:
+    extends:
+      service: mongodb
+      file: mongo.yml
+    command:
+      [
+        "--shardsvr",
+        "--replSet",
+        "shard2",
+        "--bind_ip_all",
+        "--port",
+        "27017"
+      ]
+
+  mongodb-router:
+    extends:
+      service: mongodb
+      file: mongo.yml
+    command:
+      [
+        "mongos",
+        "--configdb",
+        "configServer/mongo-sharding-mongodb-conf-1:27017",
+        "--bind_ip_all",
+        "--port",
+        "27017"
+      ]
+    depends_on:
+      - mongodb-conf
+
+
+  pymongo_api:
+    container_name: pymongo_api
+    build: 
+      context: api_app
+      dockerfile: Dockerfile
+    depends_on:
+      - mongodb-router
+    ports:
+      - 8080:8080
+    environment:
+      MONGODB_URL: "mongodb://mongo-sharding-mongodb-router-1"
+      MONGODB_DATABASE_NAME: "somedb"
+    networks:
+      app-network:
+
+networks:
+  app-network:
